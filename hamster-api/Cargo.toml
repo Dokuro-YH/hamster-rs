@@ -8,3 +8,29 @@ readme = "../README.md"
 repository = "https://github.com/Dokuro-YH/hamster-rs"
 
 [dependencies]
+dotenv = "0.13"
+derive_more = "0.14"
+
+rand = "0.6"
+bcrypt = "0.3"
+futures = "0.1"
+
+uuid = { version = "0.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bigdecimal = { version = "0.0.14", features = ["serde"] }
+
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+
+log = "0.4"
+pretty_env_logger = "0.3"
+
+# database
+r2d2 = "0.8"
+diesel = { version = "1.4", features = ["r2d2", "uuid", "chrono", "numeric", "serde_json", "postgres"] }
+
+# web framework
+actix-web = "1.0.0-alpha.4"
+actix-files = "0.1.0-alpha.4"
+actix-http = "0.1.0-alpha.4"
