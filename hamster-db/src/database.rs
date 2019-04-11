@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{fmt, marker::PhantomData, time::Duration};
 
 use actix_web::{error::BlockingError, web};
 use diesel::{
@@ -7,7 +7,7 @@ use diesel::{
 };
 use futures::future::Future;
 
-use crate::core::{Error, Result};
+use crate::DbError;
 
 pub struct Database<C: 'static>
 where
@@ -43,21 +43,20 @@ where
     }
 
     #[inline]
-    pub fn transaction<F, R>(
-        &self,
-        f: F,
-    ) -> impl Future<Item = R, Error = Error>
+    pub fn transaction<F, R, E>(&self, f: F) -> impl Future<Item = R, Error = DbError<E>>
     where
-        F: 'static + FnOnce(&C) -> Result<R> + Send,
+        F: 'static + FnOnce(&C) -> Result<R, E> + Send,
         R: 'static + Send,
+        E: 'static + From<diesel::result::Error> + fmt::Display + fmt::Debug + Send + Sync,
     {
         self.get(move |conn| conn.transaction(move || f(conn)))
     }
 
-    pub fn get<F, R>(&self, f: F) -> impl Future<Item = R, Error = Error>
+    pub fn get<F, R, E>(&self, f: F) -> impl Future<Item = R, Error = DbError<E>>
     where
-        F: 'static + FnOnce(&C) -> Result<R> + Send,
+        F: 'static + FnOnce(&C) -> Result<R, E> + Send,
         R: 'static + Send,
+        E: 'static + fmt::Display + fmt::Debug + Send + Sync,
     {
         let pool = self.pool.clone();
 
@@ -68,11 +67,11 @@ where
         .then(|res| match res {
             Ok(res) => match res {
                 Ok(value) => Ok(value),
-                Err(err) => Err(err),
+                Err(err) => Err(DbError::Error(err)),
             },
             Err(err) => match err {
-                BlockingError::Canceled => Err(Error::Timeout),
-                BlockingError::Error(err) => Err(Error::R2D2Error(err)),
+                BlockingError::Canceled => Err(DbError::Timeout),
+                BlockingError::Error(err) => Err(DbError::R2D2Error(err)),
             },
         })
     }
@@ -105,19 +104,13 @@ where
     }
 
     #[inline]
-    pub fn pool_max_lifetime(
-        &mut self,
-        max_lifetime: Option<Duration>,
-    ) -> &mut Self {
+    pub fn pool_max_lifetime(&mut self, max_lifetime: Option<Duration>) -> &mut Self {
         self.pool_max_lifetime = max_lifetime;
         self
     }
 
     #[inline]
-    pub fn pool_idle_timeout(
-        &mut self,
-        idle_timeout: Option<Duration>,
-    ) -> &mut Self {
+    pub fn pool_idle_timeout(&mut self, idle_timeout: Option<Duration>) -> &mut Self {
         self.pool_idle_timeout = idle_timeout;
         self
     }

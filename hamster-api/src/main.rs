@@ -1,22 +1,20 @@
 #[macro_use]
-extern crate diesel;
-#[macro_use]
 extern crate derive_more;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
 
-mod core;
-mod schema;
+mod error;
+mod prelude;
 mod user;
+mod utils;
 
 use std::{env, io, time};
 
 use actix_files as fs;
 use actix_web::{middleware, web, App, HttpServer};
-
-use crate::core::db;
+use diesel::pg::PgConnection;
 
 fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "hamster_api=debug,actix_web=info");
@@ -26,7 +24,7 @@ fn main() -> io::Result<()> {
 
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = db::Database::builder()
+    let db = hamster_db::Database::<PgConnection>::builder()
         .pool_max_size(10)
         .pool_min_idle(Some(0))
         .pool_max_lifetime(Some(time::Duration::from_secs(30 * 60)))

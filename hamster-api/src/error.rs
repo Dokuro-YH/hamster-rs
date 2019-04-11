@@ -2,6 +2,8 @@ use std::fmt;
 
 use actix_web::{HttpResponse, ResponseError};
 
+use hamster_db::DbError;
+
 #[derive(Debug, Display)]
 pub enum Error {
     #[display(fmt = "{}", _0)]
@@ -13,11 +15,8 @@ pub enum Error {
     #[display(fmt = "diesel error: {}", _0)]
     DieselError(diesel::result::Error),
 
-    #[display(fmt = "execute timeout")]
-    Timeout,
-
     #[display(fmt = "服务器内部错误")]
-    InternalServerError(String),
+    InternalServerError,
 }
 
 impl ResponseError for Error {
@@ -49,6 +48,16 @@ impl From<diesel::result::Error> for Error {
     }
 }
 
+impl From<DbError<Error>> for Error {
+    fn from(err: DbError<Error>) -> Self {
+        match err {
+            DbError::Error(err) => err,
+            DbError::R2D2Error(err) => Error::R2D2Error(err),
+            DbError::Timeout => Error::InternalServerError,
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 pub fn BadRequest<E>(err: E) -> Error
 where
@@ -58,9 +67,6 @@ where
 }
 
 #[allow(non_snake_case)]
-pub fn InternalServerError<E>(err: E) -> Error
-where
-    E: 'static + fmt::Debug,
-{
-    Error::InternalServerError(format!("{:?}", err))
+pub fn InternalServerError<E>(_: E) -> Error {
+    Error::InternalServerError
 }

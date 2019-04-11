@@ -6,7 +6,7 @@ use futures::Future;
 use uuid::Uuid;
 
 use super::types::*;
-use crate::core::{error, utils, Database, Error};
+use crate::prelude::{error, utils, Database, Error};
 
 pub fn api(path: &str) -> Scope<PayloadStream> {
     web::scope(path).service(
@@ -15,13 +15,13 @@ pub fn api(path: &str) -> Scope<PayloadStream> {
 }
 
 fn register_user(
-    db: web::Data<Database>,
+    db: web::Data<Database<PgConnection>>,
     register_user: web::Json<RegisterUser>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     debug!("register user: {:?}", &register_user);
 
     db.transaction(move |conn| {
-        use crate::schema::users::dsl::*;
+        use hamster_db::users::dsl::*;
 
         let register_user = register_user.into_inner();
 
