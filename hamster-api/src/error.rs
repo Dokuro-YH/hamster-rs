@@ -15,8 +15,8 @@ pub enum Error {
     #[display(fmt = "diesel error: {}", _0)]
     DieselError(diesel::result::Error),
 
-    #[display(fmt = "服务器内部错误")]
-    InternalServerError,
+    #[display(fmt = "block execute timeout")]
+    Timeout,
 }
 
 impl ResponseError for Error {
@@ -24,8 +24,14 @@ impl ResponseError for Error {
         use Error::*;
 
         match *self {
-            BadRequest(_) => HttpResponse::BadRequest().finish(),
-            _ => HttpResponse::InternalServerError().finish(),
+            BadRequest(ref message) => {
+                let payload = json!({ "message": format!("{}", message) });
+                HttpResponse::BadRequest().json(payload)
+            }
+            ref err => {
+                let payload = json!({ "message": format!("{}", err) });
+                HttpResponse::InternalServerError().json(payload)
+            }
         }
     }
 }
@@ -53,7 +59,7 @@ impl From<DbError<Error>> for Error {
         match err {
             DbError::Error(err) => err,
             DbError::R2D2Error(err) => Error::R2D2Error(err),
-            DbError::Timeout => Error::InternalServerError,
+            DbError::Timeout => Error::Timeout,
         }
     }
 }
@@ -64,9 +70,4 @@ where
     E: 'static + fmt::Display,
 {
     Error::BadRequest(format!("{}", err))
-}
-
-#[allow(non_snake_case)]
-pub fn InternalServerError<E>(_: E) -> Error {
-    Error::InternalServerError
 }

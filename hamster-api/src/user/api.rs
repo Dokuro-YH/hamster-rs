@@ -31,7 +31,7 @@ fn register_user(
 
         let user_id = Uuid::new_v4();
         let hashed_password = utils::hash_password(&register_user.password)
-            .map_err(error::InternalServerError)?;
+            .map_err(error::BadRequest)?;
         let random_avatar_url = utils::random_avatar_url();
         let now = Utc::now();
 
