@@ -2,8 +2,6 @@ use std::fmt;
 
 use actix_web::{HttpResponse, ResponseError};
 
-use hamster_db::DbError;
-
 #[derive(Debug, Display)]
 pub enum Error {
     #[display(fmt = "{}", _0)]
@@ -25,7 +23,10 @@ impl ResponseError for Error {
 
         match *self {
             BadRequest(ref message) => {
-                let payload = json!({ "message": format!("{}", message) });
+                let payload = json!({
+                    "title": "请求内容错误".to_string(),
+                    "message": message.to_string()
+                });
                 HttpResponse::BadRequest().json(payload)
             }
             ref err => {
@@ -51,16 +52,6 @@ impl<'a> From<&'a str> for Error {
 impl From<diesel::result::Error> for Error {
     fn from(err: diesel::result::Error) -> Self {
         Error::DieselError(err)
-    }
-}
-
-impl From<DbError<Error>> for Error {
-    fn from(err: DbError<Error>) -> Self {
-        match err {
-            DbError::Error(err) => err,
-            DbError::R2D2Error(err) => Error::R2D2Error(err),
-            DbError::Timeout => Error::Timeout,
-        }
     }
 }
 

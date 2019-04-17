@@ -1,46 +1,41 @@
 #[macro_use]
-extern crate derive_more;
+extern crate log;
 #[macro_use]
 extern crate serde_json;
 #[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
+extern crate derive_more;
 
-mod error;
-mod prelude;
-mod user;
-mod utils;
+pub mod api;
+pub mod core;
+pub mod db;
+pub mod utils;
 
 use std::{env, io, time};
 
-use actix_files as fs;
+use actix_files::Files;
 use actix_web::{middleware, web, App, HttpServer};
-use diesel::pg::PgConnection;
 
 fn main() -> io::Result<()> {
-    env::set_var("RUST_LOG", "hamster_api=debug,actix_web=info");
+    env::set_var("RUST_LOG", "hamster=debug,actix_web=info");
 
     dotenv::dotenv().ok();
     pretty_env_logger::init_timed();
 
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = hamster_db::Database::<PgConnection>::builder()
+    let db = db::Database::builder()
         .pool_max_size(10)
         .pool_min_idle(Some(0))
         .pool_max_lifetime(Some(time::Duration::from_secs(30 * 60)))
         .pool_idle_timeout(Some(time::Duration::from_secs(10 * 60)))
-        .open(database_url);
+        .open(&database_url);
 
     let app = move || {
         App::new()
             .data(db.clone())
             .wrap(middleware::Logger::default())
             .service(
-                web::scope("/api")
-                    .service(user::api("/users"))
-                    .service(fs::Files::new("/images", "./images")),
+                web::scope("/api").service(Files::new("/images", "images/")),
             )
     };
 
