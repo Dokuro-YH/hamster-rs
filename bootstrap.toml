@@ -1,0 +1,7 @@
+[groups]
+"groups.get"  = "Read groups"
+"groups.post" = "Create groups"
+"groups.put"  = "Update groups"
+"groups.del"  = "Delete groups"
+"user"        = "Act as a user in the system"
+"admin"       = "Act as an administrator throughout the system"

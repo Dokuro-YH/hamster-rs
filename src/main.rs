@@ -3,19 +3,28 @@ extern crate log;
 #[macro_use]
 extern crate serde_json;
 #[macro_use]
+extern crate serde_derive;
+#[macro_use]
 extern crate derive_more;
+#[macro_use]
+extern crate diesel;
 
-pub mod api;
-pub mod core;
-pub mod db;
-pub mod utils;
+mod prelude;
+mod schema;
 
-use std::{env, io, time};
+mod api;
+mod bootstrap;
+mod core;
+mod db;
 
-use actix_files::Files;
-use actix_web::{middleware, web, App, HttpServer};
+#[cfg(test)]
+mod test_helpers;
 
-fn main() -> io::Result<()> {
+use std::{env, time};
+
+use actix_web::{middleware, App, HttpServer};
+
+fn main() -> core::Result<()> {
     env::set_var("RUST_LOG", "hamster=debug,actix_web=info");
 
     dotenv::dotenv().ok();
@@ -30,13 +39,12 @@ fn main() -> io::Result<()> {
         .pool_idle_timeout(Some(time::Duration::from_secs(10 * 60)))
         .open(&database_url);
 
+    bootstrap::run(&database_url, "bootstrap.toml")?;
     let app = move || {
         App::new()
             .data(db.clone())
             .wrap(middleware::Logger::default())
-            .service(
-                web::scope("/api").service(Files::new("/images", "images/")),
-            )
+            .service(api::service("/api"))
     };
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string());
@@ -45,5 +53,7 @@ fn main() -> io::Result<()> {
 
     info!("Server listen on http:://{}", &address);
 
-    server.run()
+    server.run()?;
+
+    Ok(())
 }

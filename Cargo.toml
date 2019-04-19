@@ -13,6 +13,7 @@ codecov = { repository = "Dokuro-YH/hamster-rs", branch = "master", service = "g
 
 [dependencies]
 log = "0.4"
+toml = "0.5"
 rand = "0.6"
 bcrypt = "0.3"
 dotenv = "0.13"
@@ -27,6 +28,7 @@ bigdecimal = { version = "0.0.14", features = ["serde"] }
 # database support
 r2d2 = "0.8"
 diesel = { version = "1.4", features = ["r2d2", "uuid", "chrono", "numeric", "serde_json", "postgres"] }
+diesel_migrations = "1.4"
 
 # web support
 actix-web = "1.0.0-alpha.6"
