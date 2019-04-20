@@ -7,7 +7,10 @@ use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::Text;
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, Queryable)]
+use crate::schema::groups;
+
+#[derive(Debug, PartialEq, Deserialize, Serialize, Insertable, Queryable)]
+#[table_name = "groups"]
 pub struct Group {
     pub id: Uuid,
     pub display_name: String,
@@ -17,9 +20,9 @@ pub struct Group {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct NewGroup {
-    pub display_name: String,
-    pub description: Option<String>,
+pub struct NewGroup<'a> {
+    pub display_name: &'a str,
+    pub description: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Queryable)]
@@ -28,13 +31,6 @@ pub struct GroupMembership {
     pub member_id: Uuid,
     pub member_type: GroupMembershipType,
     pub added: DateTime<Utc>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AddMember {
-    pub group_id: Uuid,
-    pub member_id: Uuid,
-    pub member_type: GroupMembershipType,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

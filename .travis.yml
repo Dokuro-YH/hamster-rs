@@ -2,29 +2,38 @@ language: rust
 sudo: required
 dist: trusty
 
-cache:
-  apt: true
-  cargo: true
+rust:
+  - stable
+  - nightly
+  - beta
+
+cache: cargo
+
+addons:
+  postgresql: "9.5"
+  apt:
+    packages:
+      - libssl-dev
 
 matrix:
-  include:
-    - rust: stable
-    - rust: nightly
-    - rust: beta
   allow_failures:
     - rust: nightly
 
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install -y libssl-dev
+  - cargo install diesel_cli --no-default-features --features=postgres || echo "diesel_cli already installed."
+
+before_script:
+  - echo "DATABASE_URL=postgres://postgres@localhost/hamster" > .env
+  - diesel setup
+
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
 
 before_cache: |
   if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then
     RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
   fi
-
-script:
-  - cargo clean && cargo test --all
 
 after_success:
   # Codecov

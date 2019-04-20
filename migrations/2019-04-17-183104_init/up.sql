@@ -13,3 +13,13 @@ create table group_membership (
   added timestamp with time zone not null default now(),
   primary key (group_id, member_id)
 );
+
+create table users (
+  id uuid primary key,
+  username text not null unique,
+  password text not null,
+  nickname text not null,
+  avatar_url text not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);

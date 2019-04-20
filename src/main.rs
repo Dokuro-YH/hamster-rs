@@ -9,13 +9,14 @@ extern crate derive_more;
 #[macro_use]
 extern crate diesel;
 
-mod prelude;
-mod schema;
-
 mod api;
 mod bootstrap;
 mod core;
 mod db;
+mod prelude;
+mod schema;
+mod types;
+mod utils;
 
 #[cfg(test)]
 mod test_helpers;
@@ -32,7 +33,7 @@ fn main() -> core::Result<()> {
 
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = db::Database::builder()
+    let db = core::Database::builder()
         .pool_max_size(10)
         .pool_min_idle(Some(0))
         .pool_max_lifetime(Some(time::Duration::from_secs(30 * 60)))

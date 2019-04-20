@@ -1,25 +1,15 @@
 use std::{collections::HashMap, fs};
 
-use chrono::prelude::*;
 use diesel::prelude::*;
-use uuid::Uuid;
 
+use crate::db::{groups, users};
 use crate::prelude::*;
-use crate::schema::groups;
+use crate::types::GroupMembershipType;
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Config {
     pub groups: HashMap<String, String>,
-}
-
-#[derive(Debug, Insertable, Queryable)]
-#[table_name = "groups"]
-struct Group {
-    id: Uuid,
-    display_name: String,
-    description: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    pub users: HashMap<String, String>,
 }
 
 pub fn run(database_url: &str, config_path: &str) -> Result<()> {
@@ -28,6 +18,7 @@ pub fn run(database_url: &str, config_path: &str) -> Result<()> {
     let conn = PgConnection::establish(database_url)?;
 
     init_groups(&conn, config.groups)?;
+    init_users(&conn, config.users)?;
 
     Ok(())
 }
@@ -37,70 +28,72 @@ fn init_groups(
     groups: HashMap<String, String>,
 ) -> Result<()> {
     for (name, desc) in groups {
-        let group = get_or_create_group(&conn, &name)?;
+        let group = groups::get_or_create(&conn, &name)?;
 
         match group.description {
             Some(ref description) if description == &desc => continue,
-            _ => update_group_desc(&conn, &group.id, &desc)?,
+            _ => groups::update_desc(&conn, &group.id, &desc)?,
         }
     }
 
     Ok(())
 }
 
-fn get_or_create_group(conn: &PgConnection, name: &str) -> Result<Group> {
-    use crate::schema::groups::dsl::*;
-
-    match groups
-        .filter(display_name.eq(name))
-        .first::<Group>(conn)
-        .optional()?
-    {
-        Some(group) => Ok(group),
-        None => {
-            let now = Utc::now();
-            let result = diesel::insert_into(groups)
-                .values(&Group {
-                    id: Uuid::new_v4(),
-                    display_name: name.to_string(),
-                    description: None,
-                    created_at: now,
-                    updated_at: now,
-                })
-                .get_result::<Group>(conn)?;
-            Ok(result)
-        }
-    }
-}
-
-fn update_group_desc(
+fn init_users(
     conn: &PgConnection,
-    group_id: &Uuid,
-    desc: &str,
+    users: HashMap<String, String>,
 ) -> Result<()> {
-    use crate::schema::groups::dsl::*;
+    for (ref username, ref user_info) in users {
+        let (nickname, password, groups) = parse_user_info(user_info)?;
+        let user = users::create_or_update(conn, username, nickname, password)?;
 
-    let _ = diesel::update(groups.find(group_id))
-        .set((description.eq(desc), updated_at.eq(Utc::now())))
-        .execute(conn)?;
+        for g_name in groups {
+            let group = groups::get_or_create(conn, g_name)?;
+            let _ = groups::add_member(
+                conn,
+                &group.id,
+                &user.id,
+                GroupMembershipType::User,
+            )?;
+        }
+    }
 
     Ok(())
+}
+
+fn parse_user_info(user_info: &str) -> Result<(&str, &str, Vec<&str>)> {
+    let info = user_info.split('|').collect::<Vec<&str>>();
+
+    let result = match info.len() {
+        2 => (info[0], info[1], Vec::new()),
+        3 => (info[0], info[1], info[2].split(',').collect()),
+        _ => return Err(Error::from("parse user info error")),
+    };
+
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_helpers::*;
+    use crate::utils;
 
     impl Config {
         pub fn new() -> Self {
             Config {
                 groups: HashMap::new(),
+                users: HashMap::new(),
             }
         }
 
         pub fn insert_group(&mut self, key: String, val: String) -> &mut Self {
             self.groups.insert(key, val);
+            self
+        }
+
+        pub fn insert_user(&mut self, key: String, val: String) -> &mut Self {
+            self.users.insert(key, val);
             self
         }
     }
@@ -110,6 +103,9 @@ mod tests {
                                             [groups]
                                             user  = "Act as a user in the system"
                                             admin = "Act as an administrator throughout the system"
+
+                                            [users]
+                                            bob = "Bob|123456|admin,user"
                                             "#).unwrap();
 
         config
@@ -126,6 +122,11 @@ mod tests {
             "Act as an administrator throughout the system".to_string(),
         );
 
+        config.insert_user(
+            "bob".to_string(),
+            "Bob|123456|admin,user".to_string(),
+        );
+
         config
     }
 
@@ -138,7 +139,8 @@ mod tests {
 
     #[test]
     fn test_init_groups() {
-        use crate::schema::groups::dsl::*;
+        use crate::schema::groups;
+        use crate::types::Group;
 
         let conn = connection();
         let input_config = input_config();
@@ -146,10 +148,55 @@ mod tests {
 
         init_groups(&conn, input_config.groups).unwrap();
 
-        for group in groups.load::<Group>(&conn).unwrap() {
+        for group in groups::table.load::<Group>(&conn).unwrap() {
             let expected_desc = expected_groups.remove(&group.display_name);
 
             assert_eq!(&expected_desc, &group.description);
         }
+    }
+
+    #[test]
+    fn test_init_users() {
+        use crate::schema::{group_membership, groups, users};
+        use crate::types::User;
+
+        let conn = connection();
+        let input_config = input_config();
+        let mut expected_users = expected_config().users;
+
+        init_users(&conn, input_config.users).unwrap();
+
+        for user in users::table.load::<User>(&conn).unwrap() {
+            let user_info = expected_users.remove(&user.username).unwrap();
+            let (expected_nickname, raw_password, expected_groups) =
+                parse_user_info(&user_info).unwrap();
+
+            let password_verified =
+                utils::verify_password(&raw_password, &user.password).unwrap();
+
+            let groups = group_membership::table
+                .inner_join(groups::table)
+                .select(groups::display_name)
+                .filter(group_membership::member_id.eq(&user.id))
+                .load::<String>(&conn)
+                .unwrap();
+
+            let groups =
+                groups.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
+
+            assert!(password_verified);
+            assert_eq!(&expected_nickname, &user.nickname);
+            assert_eq!(&expected_groups, &groups);
+        }
+    }
+
+    #[test]
+    fn test_parse_user_info() {
+        let (nickname, password, groups) =
+            parse_user_info("Bob|123456|admin,user").unwrap();
+
+        assert_eq!(&"Bob", &nickname);
+        assert_eq!(&"123456", &password);
+        assert_eq!(&vec!["admin", "user"], &groups);
     }
 }

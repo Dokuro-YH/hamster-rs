@@ -28,7 +28,6 @@ bigdecimal = { version = "0.0.14", features = ["serde"] }
 # database support
 r2d2 = "0.8"
 diesel = { version = "1.4", features = ["r2d2", "uuid", "chrono", "numeric", "serde_json", "postgres"] }
-diesel_migrations = "1.4"
 
 # web support
 actix-web = "1.0.0-alpha.6"

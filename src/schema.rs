@@ -17,9 +17,22 @@ table! {
     }
 }
 
+table! {
+    users (id) {
+        id -> Uuid,
+        username -> Text,
+        password -> Text,
+        nickname -> Text,
+        avatar_url -> Text,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
 joinable!(group_membership -> groups (group_id));
 
 allow_tables_to_appear_in_same_query!(
     group_membership,
     groups,
+    users,
 );

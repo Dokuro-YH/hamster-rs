@@ -1,3 +1,2 @@
-mod database;
-
-pub use self::database::{Database, DatabaseBuilder};
+pub mod groups;
+pub mod users;
