@@ -39,7 +39,10 @@ pub fn create(conn: &PgConnection, new_user: NewUser) -> Result<User> {
 
     let user_id = Uuid::new_v4();
     let hashed_password = utils::hash_password(new_user.password)?;
-    let avatar_url = utils::random_avatar();
+    let avatar_url = new_user
+        .avatar_url
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| utils::random_avatar());
     let now = Utc::now();
     let user = diesel::insert_into(users::table)
         .values((
