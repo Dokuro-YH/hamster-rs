@@ -7,7 +7,7 @@ use diesel::{
 };
 use futures::future::Future;
 
-use crate::prelude::*;
+use crate::error::DbError as Error;
 
 pub struct Database {
     pub pool: Pool<ConnectionManager<PgConnection>>,

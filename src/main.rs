@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate serde_json;
-#[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate derive_more;
@@ -11,9 +9,8 @@ extern crate diesel;
 
 mod api;
 mod bootstrap;
-mod core;
 mod db;
-mod prelude;
+mod error;
 mod schema;
 mod types;
 mod utils;
@@ -25,7 +22,7 @@ use std::{env, time};
 
 use actix_web::{middleware, App, HttpServer};
 
-fn main() -> core::Result<()> {
+fn main() -> error::Result<()> {
     env::set_var("RUST_LOG", "hamster=debug,actix_web=info");
 
     dotenv::dotenv().ok();
@@ -33,7 +30,7 @@ fn main() -> core::Result<()> {
 
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db = core::Database::builder()
+    let db = db::Database::builder()
         .pool_max_size(10)
         .pool_min_idle(Some(0))
         .pool_max_lifetime(Some(time::Duration::from_secs(30 * 60)))

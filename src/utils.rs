@@ -1,16 +1,16 @@
 //! Utilitiles
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{hash, verify, BcryptError, DEFAULT_COST};
 use rand::Rng;
 
-use crate::core::error;
-use crate::prelude::*;
-
-pub fn hash_password(password: &str) -> Result<String> {
-    hash(password, DEFAULT_COST).map_err(error::BadRequest)
+pub fn hash_password(password: &str) -> Result<String, BcryptError> {
+    Ok(hash(password, DEFAULT_COST)?)
 }
 
-pub fn verify_password(raw_password: &str, password: &str) -> Result<bool> {
-    verify(raw_password, password).map_err(error::BadRequest)
+pub fn verify_password(
+    raw_password: &str,
+    password: &str,
+) -> Result<bool, BcryptError> {
+    Ok(verify(raw_password, password)?)
 }
 
 pub fn random_avatar() -> String {

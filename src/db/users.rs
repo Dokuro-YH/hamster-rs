@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::prelude::*;
+use crate::error::DbError;
 use crate::types::{NewUser, User};
 use crate::utils;
 
@@ -11,7 +11,7 @@ pub fn create_or_update(
     username: &str,
     nickname: &str,
     password: &str,
-) -> Result<User> {
+) -> Result<User, DbError> {
     use crate::schema::users;
 
     let result = match users::table
@@ -34,7 +34,7 @@ pub fn create_or_update(
     Ok(result)
 }
 
-pub fn create(conn: &PgConnection, new_user: NewUser) -> Result<User> {
+pub fn create(conn: &PgConnection, new_user: NewUser) -> Result<User, DbError> {
     use crate::schema::users;
 
     let user_id = Uuid::new_v4();
@@ -64,7 +64,7 @@ fn change_user(
     mut user: User,
     nickname: &str,
     password: &str,
-) -> Result<User> {
+) -> Result<User, DbError> {
     user.nickname = nickname.to_string();
 
     user.password = password.to_string();

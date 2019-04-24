@@ -2,10 +2,10 @@ use chrono::prelude::*;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use crate::prelude::*;
+use crate::error::DbError;
 use crate::types::{Group, GroupMembership, GroupMembershipType, NewGroup};
 
-pub fn get_all(conn: &PgConnection) -> Result<Vec<Group>> {
+pub fn get_all(conn: &PgConnection) -> Result<Vec<Group>, DbError> {
     use crate::schema::groups::dsl::*;
 
     let result = groups.load::<Group>(conn)?;
@@ -13,7 +13,10 @@ pub fn get_all(conn: &PgConnection) -> Result<Vec<Group>> {
     Ok(result)
 }
 
-pub fn get_or_create(conn: &PgConnection, name: &str) -> Result<Group> {
+pub fn get_or_create(
+    conn: &PgConnection,
+    name: &str,
+) -> Result<Group, DbError> {
     use crate::schema::groups::dsl::*;
 
     match groups
@@ -32,7 +35,10 @@ pub fn get_or_create(conn: &PgConnection, name: &str) -> Result<Group> {
     }
 }
 
-pub fn create(conn: &PgConnection, new_group: NewGroup) -> Result<Group> {
+pub fn create(
+    conn: &PgConnection,
+    new_group: NewGroup,
+) -> Result<Group, DbError> {
     use crate::schema::groups::dsl::*;
 
     let group_id = Uuid::new_v4();
@@ -54,7 +60,7 @@ pub fn update_desc(
     conn: &PgConnection,
     group_id: &Uuid,
     desc: &str,
-) -> Result<()> {
+) -> Result<(), DbError> {
     use crate::schema::groups::dsl::*;
 
     let _ = diesel::update(groups.find(group_id))
@@ -69,7 +75,7 @@ pub fn add_member(
     group_id: &Uuid,
     member_id: &Uuid,
     member_type: GroupMembershipType,
-) -> Result<GroupMembership> {
+) -> Result<GroupMembership, DbError> {
     use crate::schema::group_membership;
 
     let result = diesel::insert_into(group_membership::table)

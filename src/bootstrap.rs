@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs};
 use diesel::prelude::*;
 
 use crate::db::{groups, users};
-use crate::prelude::*;
+use crate::error::BootstrapError as Error;
 use crate::types::GroupMembershipType;
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -12,7 +12,7 @@ pub struct Config {
     pub users: HashMap<String, String>,
 }
 
-pub fn run(database_url: &str, config_path: &str) -> Result<()> {
+pub fn run(database_url: &str, config_path: &str) -> Result<(), Error> {
     let content = fs::read(config_path)?;
     let config = toml::from_slice::<Config>(&content)?;
     let conn = PgConnection::establish(database_url)?;
@@ -26,7 +26,7 @@ pub fn run(database_url: &str, config_path: &str) -> Result<()> {
 fn init_groups(
     conn: &PgConnection,
     groups: HashMap<String, String>,
-) -> Result<()> {
+) -> Result<(), Error> {
     for (name, desc) in groups {
         let group = groups::get_or_create(&conn, &name)?;
 
@@ -42,7 +42,7 @@ fn init_groups(
 fn init_users(
     conn: &PgConnection,
     users: HashMap<String, String>,
-) -> Result<()> {
+) -> Result<(), Error> {
     for (ref username, ref user_info) in users {
         let (nickname, password, groups) = parse_user_info(user_info)?;
         let user = users::create_or_update(conn, username, nickname, password)?;
@@ -61,13 +61,13 @@ fn init_users(
     Ok(())
 }
 
-fn parse_user_info(user_info: &str) -> Result<(&str, &str, Vec<&str>)> {
+fn parse_user_info(user_info: &str) -> Result<(&str, &str, Vec<&str>), Error> {
     let info = user_info.split('|').collect::<Vec<&str>>();
 
     let result = match info.len() {
         2 => (info[0], info[1], Vec::new()),
         3 => (info[0], info[1], info[2].split(',').collect()),
-        _ => return Err(Error::from("parse user info error")),
+        _ => return Err(Error::UserInfoParse(user_info.to_string())),
     };
 
     Ok(result)
