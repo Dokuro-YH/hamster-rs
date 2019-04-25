@@ -1,37 +1,87 @@
-pub use actix_web::error::*;
-use actix_web::ResponseError;
+use std::fmt::{self, Display};
+
+use actix_web::http::StatusCode;
+use actix_web::{HttpResponse, ResponseError};
+pub use failure::ResultExt;
+use failure::{Backtrace, Context, Fail};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug, Display, From)]
-pub enum BootstrapError {
-    #[display(fmt = "file not found: {}", _0)]
-    FileNotFound(std::io::Error),
-    #[display(fmt = "toml parse error: {}", _0)]
-    TomlParse(toml::de::Error),
-    #[display(fmt = "database connection error: {}", _0)]
-    Connection(diesel::result::ConnectionError),
-    #[display(fmt = "user info parse: {}", _0)]
-    UserInfoParse(String),
-    #[display(fmt = "db error: {}", _0)]
-    DbError(DbError),
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Fail)]
+pub enum ErrorKind {
+    #[fail(display = "Failed to get connection")]
+    DbPoolError,
+
+    #[fail(display = "Database access error")]
+    DbError,
+
+    #[fail(display = "Application bootstrap error")]
+    BootstrapError,
+
+    #[fail(display = "Unauthorized")]
+    Unauthorized,
+
+    #[fail(display = "Serialize json error")]
+    SerializeJsonError,
+
+    #[fail(display = "Deserialize json error")]
+    DeserializeJsonError,
+
+    #[fail(display = "Invalid http header value")]
+    HttpHeaderFailure,
+
+    #[fail(display = "Failed to bcrypt password")]
+    HashPasswordFailure,
 }
 
-impl ResponseError for BootstrapError {}
-
-#[derive(Debug, Display, From)]
-pub enum DbError {
-    #[display(fmt = "block execute timeout")]
-    Timeout,
-
-    #[display(fmt = "diesel error: {}", _0)]
-    DieselError(diesel::result::Error),
-
-    #[display(fmt = "r2d2 pool error: {}", _0)]
-    R2D2Error(r2d2::Error),
-
-    #[display(fmt = "bcrypt error: {}", _0)]
-    BcryptError(bcrypt::BcryptError),
+#[derive(Debug)]
+pub struct Error {
+    inner: Context<ErrorKind>,
 }
 
-impl ResponseError for DbError {}
+impl Error {
+    pub fn kind(&self) -> ErrorKind {
+        *self.inner.get_context()
+    }
+}
+
+impl ResponseError for Error {
+    fn error_response(&self) -> HttpResponse {
+        use self::ErrorKind::*;
+
+        match self.kind() {
+            Unauthorized => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            _ => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+impl Fail for Error {
+    fn cause(&self) -> Option<&Fail> {
+        self.inner.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(&self.inner, f)
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Error {
+        Error {
+            inner: Context::new(kind),
+        }
+    }
+}
+
+impl From<Context<ErrorKind>> for Error {
+    fn from(inner: Context<ErrorKind>) -> Error {
+        Error { inner }
+    }
+}

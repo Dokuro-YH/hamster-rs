@@ -5,3 +5,6 @@
 "groups.del"  = "Delete groups"
 "user"        = "Act as a user in the system"
 "admin"       = "Act as an administrator throughout the system"
+
+[users]
+admin = "管理员|123456|admin"

@@ -1,16 +1,16 @@
 //! Utilitiles
-use bcrypt::{hash, verify, BcryptError, DEFAULT_COST};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use rand::Rng;
 
-pub fn hash_password(password: &str) -> Result<String, BcryptError> {
-    Ok(hash(password, DEFAULT_COST)?)
+use crate::error::{ErrorKind, Result, ResultExt};
+
+pub fn hash_password(password: &str) -> Result<String> {
+    Ok(hash(password, DEFAULT_COST).context(ErrorKind::HashPasswordFailure)?)
 }
 
-pub fn verify_password(
-    raw_password: &str,
-    password: &str,
-) -> Result<bool, BcryptError> {
-    Ok(verify(raw_password, password)?)
+pub fn verify_password(raw_password: &str, password: &str) -> Result<bool> {
+    Ok(verify(raw_password, password)
+        .context(ErrorKind::HashPasswordFailure)?)
 }
 
 pub fn random_avatar() -> String {

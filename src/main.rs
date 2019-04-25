@@ -7,12 +7,13 @@ extern crate derive_more;
 #[macro_use]
 extern crate diesel;
 
-mod api;
+mod auth;
 mod bootstrap;
 mod db;
 mod error;
+mod groups;
 mod schema;
-mod types;
+mod users;
 mod utils;
 
 #[cfg(test)]
@@ -20,9 +21,17 @@ mod test_helpers;
 
 use std::{env, time};
 
-use actix_web::{middleware, App, HttpServer};
+use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpServer};
+use failure::Error;
 
-fn main() -> error::Result<()> {
+use crate::auth::middleware::{
+    AuthenticationService, CookieAuthenticationBackend,
+};
+
+static AUTH_SIGNING_KEY: &[u8] = &[0; 32];
+
+fn main() -> Result<(), Error> {
     env::set_var("RUST_LOG", "hamster=debug,actix_web=info");
 
     dotenv::dotenv().ok();
@@ -39,10 +48,24 @@ fn main() -> error::Result<()> {
 
     bootstrap::run(&database_url, "bootstrap.toml")?;
     let app = move || {
+        let domain =
+            env::var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
+        let auth_backend = CookieAuthenticationBackend::new(AUTH_SIGNING_KEY)
+            .name("hamster-auth")
+            .path("/")
+            .domain(domain.clone())
+            .max_age(3600)
+            .secure(false);
+
         App::new()
             .data(db.clone())
-            .wrap(middleware::Logger::default())
-            .service(api::service("/api"))
+            .wrap(AuthenticationService::new(auth_backend))
+            .wrap(Logger::default())
+            .service(
+                web::scope("/api")
+                    .service(auth::service("/auth"))
+                    .service(groups::service("/groups")),
+            )
     };
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string());

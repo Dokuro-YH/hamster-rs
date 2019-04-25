@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use actix_web::{error::BlockingError, web};
 use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    Connection, PgConnection,
+    r2d2::{ConnectionManager, Pool, PooledConnection},
+    PgConnection,
 };
-use futures::future::Future;
 
-use crate::error::DbError as Error;
+use crate::error::{ErrorKind, Result, ResultExt};
+
+type Conn = PooledConnection<ConnectionManager<PgConnection>>;
 
 pub struct Database {
     pub pool: Pool<ConnectionManager<PgConnection>>,
@@ -33,38 +33,10 @@ impl Database {
     }
 
     #[inline]
-    pub fn transaction<F, R>(
-        &self,
-        f: F,
-    ) -> impl Future<Item = R, Error = Error>
-    where
-        F: 'static + FnOnce(&PgConnection) -> Result<R, Error> + Send,
-        R: 'static + Send,
-    {
-        self.get(move |conn| conn.transaction(move || f(conn)))
-    }
-
-    pub fn get<F, R>(&self, f: F) -> impl Future<Item = R, Error = Error>
-    where
-        F: 'static + FnOnce(&PgConnection) -> Result<R, Error> + Send,
-        R: 'static + Send,
-    {
+    pub fn conn(&self) -> Result<Conn> {
         let pool = self.pool.clone();
 
-        web::block(move || match pool.get() {
-            Ok(conn) => Ok((f)(&*conn)),
-            Err(err) => Err(err),
-        })
-        .then(|res| match res {
-            Ok(res) => match res {
-                Ok(value) => Ok(value),
-                Err(err) => Err(err),
-            },
-            Err(err) => match err {
-                BlockingError::Canceled => Err(Error::Timeout),
-                BlockingError::Error(err) => Err(Error::R2D2Error(err)),
-            },
-        })
+        Ok(pool.get().context(ErrorKind::DbPoolError)?)
     }
 }
 

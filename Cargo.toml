@@ -14,10 +14,12 @@ codecov = { repository = "Dokuro-YH/hamster-rs", branch = "master", service = "g
 [dependencies]
 log = "0.4"
 toml = "0.5"
+time = "0.1"
 rand = "0.6"
 bcrypt = "0.3"
 dotenv = "0.13"
 futures = "0.1"
+failure = "0.1"
 derive_more = "0.14"
 pretty_env_logger = "0.3"
 
@@ -32,6 +34,8 @@ diesel = { version = "1.4", features = ["r2d2", "uuid", "chrono", "numeric", "se
 # web support
 actix-web = "1.0.0-beta.1"
 actix-files = "0.1.0-beta.1"
+actix-session = "0.1.0-beta.1"
+actix-service = "0.3"
 
 serde = "1.0"
 serde_json = "1.0"
