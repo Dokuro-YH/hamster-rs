@@ -20,9 +20,15 @@ pub struct Group {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct NewGroup<'a> {
-    pub display_name: &'a str,
-    pub description: Option<&'a str>,
+pub struct NewGroup {
+    pub display_name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateGroup {
+    pub display_name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Queryable)]

@@ -2,10 +2,13 @@ use chrono::prelude::*;
 use diesel::prelude::*;
 use uuid::Uuid;
 
-use super::types::{Group, GroupMembership, GroupMembershipType, NewGroup};
+use super::types::{
+    Group, GroupMembership, GroupMembershipType, NewGroup, UpdateGroup,
+};
+use crate::db::{self, Conn};
 use crate::error::{ErrorKind, Result, ResultExt};
 
-pub fn find_all(conn: &PgConnection) -> Result<Vec<Group>> {
+pub fn find_all(conn: &Conn) -> Result<Vec<Group>> {
     use crate::schema::groups::dsl::*;
 
     let result = groups.load::<Group>(conn).context(ErrorKind::DbError)?;
@@ -13,7 +16,7 @@ pub fn find_all(conn: &PgConnection) -> Result<Vec<Group>> {
     Ok(result)
 }
 
-pub fn find_by_name(conn: &PgConnection, name: &str) -> Result<Option<Group>> {
+pub fn find_by_name(conn: &Conn, name: &str) -> Result<Option<Group>> {
     use crate::schema::groups::dsl::*;
 
     Ok(groups
@@ -23,10 +26,7 @@ pub fn find_by_name(conn: &PgConnection, name: &str) -> Result<Option<Group>> {
         .context(ErrorKind::DbError)?)
 }
 
-pub fn find_by_member_id(
-    conn: &PgConnection,
-    member_id: &Uuid,
-) -> Result<Vec<Group>> {
+pub fn find_by_member_id(conn: &Conn, member_id: &Uuid) -> Result<Vec<Group>> {
     let mut result = Vec::new();
 
     let mut member_ids = vec![*member_id];
@@ -41,7 +41,7 @@ pub fn find_by_member_id(
     Ok(result)
 }
 
-pub fn get_or_create(conn: &PgConnection, name: &str) -> Result<Group> {
+pub fn get_or_create(conn: &Conn, name: &str) -> Result<Group> {
     use crate::schema::groups::dsl::*;
 
     let group_opt = groups
@@ -55,14 +55,14 @@ pub fn get_or_create(conn: &PgConnection, name: &str) -> Result<Group> {
         None => create(
             conn,
             NewGroup {
-                display_name: name,
+                display_name: name.to_string(),
                 description: None,
             },
         ),
     }
 }
 
-pub fn create(conn: &PgConnection, new_group: NewGroup) -> Result<Group> {
+pub fn create(conn: &Conn, new_group: NewGroup) -> Result<Group> {
     use crate::schema::groups::dsl::*;
 
     let group_id = Uuid::new_v4();
@@ -81,11 +81,24 @@ pub fn create(conn: &PgConnection, new_group: NewGroup) -> Result<Group> {
     Ok(result)
 }
 
-pub fn update_desc(
-    conn: &PgConnection,
+pub fn update(
+    conn: &Conn,
     group_id: &Uuid,
-    desc: &str,
+    update: UpdateGroup,
 ) -> Result<usize> {
+    use crate::schema::groups::dsl::*;
+
+    Ok(diesel::update(groups.find(group_id))
+        .set((
+            display_name.eq(&update.display_name),
+            description.eq(&update.description),
+            updated_at.eq(Utc::now()),
+        ))
+        .execute(conn)
+        .context(ErrorKind::DbError)?)
+}
+
+pub fn update_desc(conn: &Conn, group_id: &Uuid, desc: &str) -> Result<usize> {
     use crate::schema::groups::dsl::*;
 
     Ok(diesel::update(groups.find(group_id))
@@ -94,10 +107,8 @@ pub fn update_desc(
         .context(ErrorKind::DbError)?)
 }
 
-pub fn del_by_id(conn: &PgConnection, group_id: &Uuid) -> Result<usize> {
+pub fn del_by_id(conn: &Conn, group_id: &Uuid) -> Result<usize> {
     use crate::schema::groups;
-
-    self::del_members_by_group_id(conn, group_id)?;
 
     Ok(diesel::delete(groups::table)
         .filter(groups::id.eq(group_id))
@@ -106,7 +117,7 @@ pub fn del_by_id(conn: &PgConnection, group_id: &Uuid) -> Result<usize> {
 }
 
 pub fn add_member(
-    conn: &PgConnection,
+    conn: &Conn,
     group_id: &Uuid,
     member_id: &Uuid,
     member_type: GroupMembershipType,
@@ -135,10 +146,7 @@ pub fn add_member(
     }
 }
 
-pub fn del_members_by_group_id(
-    conn: &PgConnection,
-    group_id: &Uuid,
-) -> Result<usize> {
+pub fn del_members_by_group_id(conn: &Conn, group_id: &Uuid) -> Result<usize> {
     use crate::schema::group_membership;
 
     Ok(diesel::delete(group_membership::table)
@@ -148,7 +156,7 @@ pub fn del_members_by_group_id(
 }
 
 pub fn del_members_by_member_id(
-    conn: &PgConnection,
+    conn: &Conn,
     member_id: &Uuid,
 ) -> Result<usize> {
     use crate::schema::group_membership;
@@ -160,7 +168,7 @@ pub fn del_members_by_member_id(
 }
 
 fn find_groups_by_member_ids(
-    conn: &PgConnection,
+    conn: &Conn,
     member_ids: &[Uuid],
 ) -> Result<Vec<Group>> {
     use crate::schema::{group_membership, groups};

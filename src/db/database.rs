@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use diesel::{
+    connection::{Connection, TransactionManager},
     r2d2::{ConnectionManager, Pool, PooledConnection},
     PgConnection,
 };
 
 use crate::error::{ErrorKind, Result, ResultExt};
 
-type Conn = PooledConnection<ConnectionManager<PgConnection>>;
+pub type Conn = PgConnection;
 
 pub struct Database {
     pub pool: Pool<ConnectionManager<PgConnection>>,
@@ -33,10 +34,39 @@ impl Database {
     }
 
     #[inline]
-    pub fn conn(&self) -> Result<Conn> {
+    pub fn conn(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<PgConnection>>> {
         let pool = self.pool.clone();
 
         Ok(pool.get().context(ErrorKind::DbPoolError)?)
+    }
+
+    #[inline]
+    pub fn transaction<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&Conn) -> Result<T>,
+    {
+        let conn = self.conn()?;
+
+        let transaction_manager = conn.transaction_manager();
+        transaction_manager
+            .begin_transaction(&conn)
+            .context(ErrorKind::TransactionError)?;
+        match f(&conn) {
+            Ok(value) => {
+                transaction_manager
+                    .commit_transaction(&conn)
+                    .context(ErrorKind::TransactionError)?;
+                Ok(value)
+            }
+            Err(e) => {
+                transaction_manager
+                    .rollback_transaction(&conn)
+                    .context(ErrorKind::TransactionError)?;
+                Err(e)
+            }
+        }
     }
 }
 

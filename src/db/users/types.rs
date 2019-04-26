@@ -26,9 +26,9 @@ pub struct User {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct NewUser<'a> {
-    pub username: &'a str,
-    pub password: &'a str,
-    pub nickname: &'a str,
-    pub avatar_url: Option<&'a str>,
+pub struct NewUser {
+    pub username: String,
+    pub password: String,
+    pub nickname: String,
+    pub avatar_url: Option<String>,
 }

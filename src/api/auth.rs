@@ -2,9 +2,9 @@ use actix_web::{web, Error, HttpResponse, Scope};
 use futures::Future;
 
 use crate::auth::{Authentication, AuthenticationManager};
-use crate::db::Database;
+use crate::db::{groups, users, Database};
 use crate::error::{ErrorKind, Result};
-use crate::{groups, users, utils};
+use crate::utils;
 
 #[derive(Debug, Deserialize)]
 struct AuthData {

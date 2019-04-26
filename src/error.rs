@@ -15,6 +15,9 @@ pub enum ErrorKind {
     #[fail(display = "Database access error")]
     DbError,
 
+    #[fail(display = "Transaction error")]
+    TransactionError,
+
     #[fail(display = "Application bootstrap error")]
     BootstrapError,
 

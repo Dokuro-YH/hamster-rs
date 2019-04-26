@@ -2,9 +2,11 @@ use std::{collections::HashMap, fs};
 
 use diesel::{Connection, PgConnection};
 
+use crate::db::{
+    groups::{self, GroupMembershipType},
+    users,
+};
 use crate::error::{ErrorKind, Result, ResultExt};
-use crate::groups::{self, GroupMembershipType};
-use crate::users;
 use crate::utils;
 
 #[derive(Debug, PartialEq, Deserialize)]

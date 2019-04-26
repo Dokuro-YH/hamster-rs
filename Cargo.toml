@@ -20,7 +20,6 @@ bcrypt = "0.3"
 dotenv = "0.13"
 futures = "0.1"
 failure = "0.1"
-derive_more = "0.14"
 pretty_env_logger = "0.3"
 
 uuid = { version = "0.6", features = ["v4", "serde"] }

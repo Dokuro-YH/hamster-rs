@@ -3,17 +3,14 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
-extern crate derive_more;
-#[macro_use]
 extern crate diesel;
 
+mod api;
 mod auth;
 mod bootstrap;
 mod db;
 mod error;
-mod groups;
 mod schema;
-mod users;
 mod utils;
 
 #[cfg(test)]
@@ -22,7 +19,7 @@ mod test_helpers;
 use std::{env, time};
 
 use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer};
 use failure::Error;
 
 use crate::auth::middleware::{
@@ -61,11 +58,7 @@ fn main() -> Result<(), Error> {
             .data(db.clone())
             .wrap(AuthenticationService::new(auth_backend))
             .wrap(Logger::default())
-            .service(
-                web::scope("/api")
-                    .service(auth::service("/auth"))
-                    .service(groups::service("/groups")),
-            )
+            .service(api::service("/api"))
     };
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string());
