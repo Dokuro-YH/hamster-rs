@@ -283,46 +283,48 @@ impl AuthenticationBackend for CookieAuthenticationBackend {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use actix_web::http::StatusCode;
-//     use actix_web::test::{self, TestRequest};
-//     use actix_web::{web, App, HttpResponse};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::http::StatusCode;
+    use actix_web::test::{self, TestRequest};
+    use actix_web::{web, App, HttpResponse};
 
-//     #[test]
-//     fn test_cookie_authentication() {
-//         let mut app = test::init_service(
-//             App::new()
-//                 .wrap(AuthenticationService::new(
-//                     CookieAuthenticationBackend::new(&[0; 32]).secure(false),
-//                 ))
-//                 .service(web::resource("/").to(|am: AuthenticationManager| {
-//                     let a = am
-//                         .authentication()
-//                         .unwrap_or_else(Authentication::anonymous);
+    #[test]
+    fn test_cookie_authentication() {
+        let mut app = test::init_service(
+            App::new()
+                .wrap(AuthenticationService::new(
+                    CookieAuthenticationBackend::new(&[0; 32]).secure(false),
+                ))
+                .service(web::resource("/").to(|am: AuthenticationManager| {
+                    let a = am
+                        .authentication()
+                        .unwrap_or_else(Authentication::anonymous);
 
-//                     a.identity().to_string()
-//                 }))
-//                 .service(web::resource("/login").to(
-//                     |am: AuthenticationManager| {
-//                         am.remember(Authentication::new(
-//                             "admin",
-//                             vec!["admin".to_string()],
-//                         ));
-//                         HttpResponse::Ok()
-//                     },
-//                 ))
-//                 .service(web::resource("/logout").to(
-//                     |am: AuthenticationManager| {
-//                         am.forget();
-//                         HttpResponse::Ok()
-//                     },
-//                 )),
-//         );
+                    a.identity().to_string()
+                }))
+                .service(web::resource("/login").to(
+                    |am: AuthenticationManager| {
+                        am.remember(Authentication::new(
+                            "admin",
+                            vec!["admin".to_string()],
+                        ));
+                        HttpResponse::Ok()
+                    },
+                ))
+                .service(web::resource("/logout").to(
+                    |am: AuthenticationManager| {
+                        am.forget();
+                        HttpResponse::Ok()
+                    },
+                )),
+        );
 
-//         let req = TestRequest::with_uri("/").to_request();
-//         let resp = test::block_on(app.call(req)).unwrap();
-//         assert_eq!(resp.status(), StatusCode::OK);
-//     }
-// }
+        let resp = test::call_service(
+            &mut app,
+            TestRequest::with_uri("/").to_request(),
+        );
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+}
